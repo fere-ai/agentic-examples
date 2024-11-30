@@ -55,7 +55,8 @@ class FereAgent {
         return {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-FRIDAY-KEY': this.fereApiKey
+          'X-FRIDAY-KEY': this.fereApiKey,
+          'X-FERE-USERID': this.fereUserId,
         };
     }
 
