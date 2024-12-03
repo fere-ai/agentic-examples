@@ -149,6 +149,20 @@ class FereAgent {
         }
     }
 
+    async getTradeRecommendations(discipleAgentId: string): Promise<any[] | void> {
+        const url = `${this.baseUrl}/agent/${discipleAgentId}/decisions/`;
+
+        try {
+            const response: AxiosResponse = await axios.get(url, {
+                headers: this.getApiHeaders(),
+            });
+
+            return response.status === 200 ? response.data : undefined;
+        } catch (error) {
+            console.error(`Request failed: ${error}`);
+        }
+    }
+
     async getOptimalGains(discipleAgentId: string): Promise<any | void> {
         const url = `${this.baseUrl}/ta/agent/${discipleAgentId}/buy/`;
 
