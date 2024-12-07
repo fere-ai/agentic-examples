@@ -5,9 +5,8 @@
   "main": "dist/fere-pro-qna.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/trading-agent.js",
-    "dev": "tsc && node dist/trading-agent.js",
-    "start:dev": "npm run build && npm run start"
+    "dev:trading-agent": "tsc && node dist/trading-agent.js",
+    "dev:fere-pro-qna": "tsc && node dist/fere-pro-qna.js"
   },
   "keywords": [],
   "author": "",
