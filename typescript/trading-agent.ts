@@ -28,7 +28,6 @@ interface CreateAgentResponse extends CreateAgentParams {
 }
 
 interface UpdateAgentPayload {
-  userId: string;
   name: string;
   description: string;
   persona: string;
@@ -47,6 +46,76 @@ interface UpdateAgentPayload {
 
 interface Disciple extends CreateAgentParams {
   is_active: boolean;
+}
+
+interface AgentPortfolio {
+  id: string; // UUID
+  agent_id: string; // UUID
+  start_time: string; // ISO 8601 date-time string
+  start_usd: number; // Start USD
+  start_native: number; // Start Native
+  curr_realised_usd: number; // Current Realised USD
+  curr_realised_native: number; // Current Realised Native
+  curr_unrealised_usd: number; // Current Unrealised USD
+  curr_unrealised_native: number; // Current Unrealised Native
+  dry_run: boolean; // Dry Run
+}
+
+interface AgentHolding {
+  id: string; // UUID
+  bought_at: string; // ISO 8601 date-time string
+  agent_id: string; // UUID
+  base_address: string; // Base Address
+  pool_address: string; // Pool Address
+  pool_name: string; // Pool Name
+  token_name: string; // Token Name
+  decimals: number; // Decimals (integer)
+  tokens_bought: number; // Tokens Bought
+  buying_price_usd: number; // Buying Price in USD
+  buying_price_native: number; // Buying Price in Native
+  curr_price_usd: number; // Current Price in USD
+  curr_price_native: number; // Current Price in Native
+  profit_abs_usd: number; // Profit Absolute in USD (could specify structure if known)
+  profit_abs_native: number; // Profit Absolute in Native (could specify structure if known)
+  profit_per_usd: number; // Profit Percentage in USD (could specify structure if known)
+  profit_per_native: number; // Profit Percentage in Native (could specify structure if known)
+  is_active: boolean; // Is Active
+  dry_run: boolean; // Dry Run
+}
+
+interface AgentDecisions {
+  id: string; // UUID
+  agent_id: string; // UUID
+  created_at: string; // ISO 8601 date-time string
+  pool_address: string; // Pool Address
+  decision: number; // Decision (integer)
+  price_usd: number; // Price in USD
+  price_native: number; // Price in Native
+  reason: string; // Reason (could specify structure if known)
+  future_action: string; // Future Action (could specify structure if known)
+  dry_run: boolean; // Dry Run
+}
+
+interface AgentTrades {
+  created_at: string; // date-time
+  agent_id: string; // uuid
+  base_address: string; // Base Address (string)
+  pool_name: string; // Pool Name (string)
+  decision: number; // Decision (integer)
+  price_usd: number; // Price Usd (number)
+  price_sol: number; // Price Sol (number)
+  in_amount: number; // In Amount (number)
+  out_amount: number; // Out Amount (number)
+  gas_fee: number; // Gas Fee (number)
+  jito_fee: number; // Jito Fee (number)
+  other_amount_threshold: number; // Other Amount Threshold (number)
+  reason: string;
+  future_action: string;
+  profit_sol: number;
+  profit_usd: number;
+  profit_percentage: object;
+  txn: string;
+  dry_run: boolean; // Dry Run (boolean)
 }
 
 class FereAgent {
@@ -132,7 +201,7 @@ class FereAgent {
     }
   }
 
-  async getPortfolio(discipleAgentId: string): Promise<any | void> {
+  async getPortfolio(discipleAgentId: string): Promise<AgentPortfolio | void> {
     const url = `${this.baseUrl}/agent/${discipleAgentId}/portfolio/`;
 
     try {
@@ -146,7 +215,7 @@ class FereAgent {
     }
   }
 
-  async getHoldings(discipleAgentId: string): Promise<any[] | void> {
+  async getHoldings(discipleAgentId: string): Promise<AgentHolding[] | void> {
     const url = `${this.baseUrl}/agent/${discipleAgentId}/holdings/`;
 
     try {
@@ -160,7 +229,7 @@ class FereAgent {
     }
   }
 
-  async getTrades(discipleAgentId: string): Promise<any[] | void> {
+  async getTrades(discipleAgentId: string): Promise<AgentTrades[] | void> {
     const url = `${this.baseUrl}/agent/${discipleAgentId}/trades/`;
 
     try {
@@ -238,6 +307,22 @@ class FereAgent {
     }
   }
 
+  async getDecisions(discipleAgentId: string): Promise<AgentDecisions | null> {
+    const url = `${this.baseUrl}/agent/${discipleAgentId}/decisions/`;
+
+    try {
+      const response: AxiosResponse = await axios.get(url, {
+        headers: this.getApiHeaders(),
+      });
+
+      return response.status === 200 ? response.data : null;
+    } catch (error) {
+      console.error(`Request failed: ${error}`);
+
+      return null;
+    }
+  }
+
   async updateAgent(
     discipleId: string,
     payload: UpdateAgentPayload
@@ -245,9 +330,16 @@ class FereAgent {
     const url = `${this.baseUrl}/agent/${discipleId}/`;
 
     try {
-      const response: AxiosResponse = await axios.patch(url, payload, {
-        headers: this.getApiHeaders(),
-      });
+      const response: AxiosResponse = await axios.patch(
+        url,
+        {
+          ...payload,
+          user_id: this.fereUserId,
+        },
+        {
+          headers: this.getApiHeaders(),
+        }
+      );
 
       return response.status === 200 ? response.data : undefined;
     } catch (error) {
@@ -336,6 +428,40 @@ async function main() {
   //   } else {
   //     console.log("Disciple agent deletion failed");
   //   }
+
+  // get portfolio
+  //   console.log(await agent.getPortfolio("DISCIPLE-AGENT-ID"));
+
+  // get holdings
+  //   console.log(await agent.getHoldings("DISCIPLE-AGENT-ID"));
+
+  // get decisions
+  //   console.log(await agent.getDecisions("DISCIPLE-AGENT-ID"));
+
+  // create trade
+  //   console.log(
+  //     await agent.sellHolding("YOUR-DISCIPLE-ID", "HOLDING-ID", 10)
+  //   );
+
+  // get trades
+  //   console.log(await agent.getTrades("YOUR-DISCIPLE-ID"));
+
+  // buy recommendation
+  //   console.log(
+  //     await agent.getOptimalGains("YOUR-DISCIPLE-ID")
+  //   );
+
+  // update agent
+  //   console.log(
+  //     await agent.updateAgent("YOUR-DISCIPLE-ID", {
+  //       ...createAgentParams,
+  //       // updated parameters
+  //       name: "MyUpdatedDisciple",
+  //     })
+  //   );
+
+  // get status of task
+  //   console.log(await agent.getTaskStatus("TASK-ID"));
 }
 
 main();

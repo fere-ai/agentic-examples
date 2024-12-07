@@ -68,7 +68,6 @@ async function streamChatResponse({ userId, query, baseUrl, apiKey, agent, }) {
                 throw new Error(`Unsupported agent: ${agent}`);
         }
     })();
-    console.log(`socket url: ${wsUrl}`);
     const websocket = new ws_1.default(wsUrl);
     websocket.on("open", () => {
         const payload = createPayload({
@@ -100,10 +99,10 @@ async function streamChatResponse({ userId, query, baseUrl, apiKey, agent, }) {
 }
 if (require.main === module) {
     const config = {
-        userId: "2609ed40-39b5-430a-b343-b377052b9781",
+        userId: "YOUR-USER-ID",
         query: "Who are the top KOLs for $CHILLGUY?",
         baseUrl: "api.fereai.xyz",
-        apiKey: "98aD7ZQMzcCABC",
+        apiKey: "YOUR-API-KEY",
         // select agent type
         agent: "ProAgent",
     };
