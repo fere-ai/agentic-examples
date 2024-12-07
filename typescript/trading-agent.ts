@@ -45,9 +45,8 @@ interface UpdateAgentPayload {
   takeProfit?: number;
 }
 
-interface Disciple {
-  name: string;
-  id: string;
+interface Disciple extends CreateAgentParams {
+  is_active: boolean;
 }
 
 class FereAgent {
@@ -69,7 +68,9 @@ class FereAgent {
     };
   }
 
-  async createAgent(params: CreateAgentParams): Promise<any | null> {
+  async createAgent(
+    params: CreateAgentParams
+  ): Promise<CreateAgentResponse | null> {
     const url = `${this.baseUrl}/agent/`;
     const payload = {
       user_id: this.fereUserId,
@@ -105,7 +106,7 @@ class FereAgent {
     const url = `${this.baseUrl}/ta/agent/${this.fereUserId}/`;
 
     try {
-      const response: AxiosResponse = await axios.get(url, {
+      const response: AxiosResponse<Array<Disciple>> = await axios.get(url, {
         headers: this.getApiHeaders(),
       });
 
@@ -113,6 +114,21 @@ class FereAgent {
     } catch (error) {
       console.error(`Request failed: ${error}`);
       return [];
+    }
+  }
+
+  async getAgentDetails(discipleAgentId: string): Promise<Disciple | null> {
+    const url = `${this.baseUrl}/agent/${discipleAgentId}`;
+    try {
+      const response: AxiosResponse<Disciple> = await axios.get(url, {
+        headers: this.getApiHeaders(),
+      });
+
+      return response.status === 200 ? response.data : null;
+    } catch (error) {
+      console.error(`Request failed: ${error}`);
+
+      return null;
     }
   }
 
@@ -276,34 +292,50 @@ async function main() {
     takeProfit: 0.1,
   };
 
-  const createdAgent = await agent.createAgent(createAgentParams);
+  //   const createdAgent = await agent.createAgent(createAgentParams);
+  //   if (createdAgent) {
+  //     console.log(`Agent created: ${createdAgent.id}`);
 
-  if (createdAgent) {
-    console.log(`Agent created: ${createdAgent.id}`);
+  //     const { sol_address, evm_address, sol_pvt_key, evm_pvt_key, mnemonic } =
+  //       createdAgent;
 
-    const { sol_address, evm_address, sol_pvt_key, evm_pvt_key, mnemonic } =
-      createdAgent;
+  //     // Save keys and addresses to .env file
+  //     const envContent = [
+  //       `SOLANA_WALLET_ADDRESS=${sol_address}`,
+  //       `EVM_WALLET_ADDRESS=${evm_address}`,
+  //       `SOLANA_PRIVATE_KEY=${sol_pvt_key}`,
+  //       `EVM_PRIVATE_KEY=${evm_pvt_key}`,
+  //       `MNEMONIC=${mnemonic}`,
+  //     ].join("\n");
 
-    // Save keys and addresses to .env file
-    const envContent = [
-      `SOLANA_WALLET_ADDRESS=${sol_address}`,
-      `EVM_WALLET_ADDRESS=${evm_address}`,
-      `SOLANA_PRIVATE_KEY=${sol_pvt_key}`,
-      `EVM_PRIVATE_KEY=${evm_pvt_key}`,
-      `MNEMONIC=${mnemonic}`,
-    ].join("\n");
+  //     const envFilePath = path.join(__dirname, `agent-${createdAgent.id}.env`);
 
-    const envFilePath = path.join(__dirname, `agent-${createdAgent.id}.env`);
+  //     try {
+  //       fs.writeFileSync(envFilePath, envContent, { mode: 0o600 }); // Set restrictive permissions
+  //       console.log(`Credentials saved to ${envFilePath}`);
+  //     } catch (error) {
+  //       console.error("Failed to save credentials:", error);
+  //     }
+  //   } else {
+  //     console.log("Agent creation failed");
+  //   }
 
-    try {
-      fs.writeFileSync(envFilePath, envContent, { mode: 0o600 }); // Set restrictive permissions
-      console.log(`Credentials saved to ${envFilePath}`);
-    } catch (error) {
-      console.error("Failed to save credentials:", error);
-    }
-  } else {
-    console.log("Agent creation failed");
-  }
+  // fetch disciples or 0xMonk Agents
+  //   console.log(await agent.fetchDisciples());
+
+  // get disciple details
+  //   console.log(
+  //     await agent.getAgentDetails("DISCIPLE-AGENT-ID")
+  //   );
+
+  // delete disciple agent
+  //   const deleted = await agent.deleteDisciple("DISCIPLE-AGENT-ID");
+
+  //   if (deleted) {
+  //     console.log("Disciple agent deleted");
+  //   } else {
+  //     console.log("Disciple agent deletion failed");
+  //   }
 }
 
 main();
