@@ -1,5 +1,27 @@
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+const getUserTime = () => {
+  // Extend dayjs with plugins
+  dayjs.extend(utc);
+  dayjs.extend(timezone);
+
+  // Detect user's timezone
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // Get current timestamp (in UTC)
+  const currentTimestamp = Date.now();
+
+  // Parse the timestamp to the detected timezone
+  const userTime = dayjs(currentTimestamp).tz(userTimezone);
+
+  return userTime;
+};
+
+export { getUserTime };
 
 /**
  * Available AI agent endpoints that can be queried
@@ -38,8 +60,9 @@ type Payload = ProAgentPayload | MarketAnalyzerPayload;
  */
 const createPayload = (payload: Payload): Record<string, unknown> => {
   const basePayload = {
-    stream: payload.stream ?? false,
     agent: payload.agent,
+    stream: payload.stream ?? false,
+    user_time: getUserTime().format(),
     x_hours: payload.contextDuration,
   };
 
@@ -47,13 +70,14 @@ const createPayload = (payload: Payload): Record<string, unknown> => {
     case "ProAgent": {
       return {
         ...basePayload,
-        parent: payload.parentId,
+        parent: payload.parentId === "0" ? 0 : payload.parentId,
+        message: payload.value,
       };
     }
     case "MarketAnalyzerAgent": {
       return {
         ...basePayload,
-        parent: "0",
+        parent: 0,
       };
     }
     default: {
@@ -68,6 +92,7 @@ interface ChatConfig {
   readonly query: string;
   readonly baseUrl: string;
   readonly apiKey: string;
+  readonly agent: Endpoint;
 }
 
 /**
@@ -81,30 +106,33 @@ async function streamChatResponse({
   query,
   baseUrl,
   apiKey,
+  agent,
 }: ChatConfig): Promise<void> {
-  const wsUrl = `wss://${baseUrl}/chat/v2/ws/${userId}?X-FRIDAY-KEY=${apiKey}`;
+  const wsUrl = (() => {
+    switch (agent) {
+      case "ProAgent":
+        return `wss://${baseUrl}/chat/v2/ws/${userId}?X-FRIDAY-KEY=${apiKey}`;
+      case "MarketAnalyzerAgent":
+        return `wss://${baseUrl}/ws/generate_summary/${userId}?X-FRIDAY-KEY=${apiKey}`;
+      default:
+        throw new Error(`Unsupported agent: ${agent}`);
+    }
+  })();
+
   const websocket = new WebSocket(wsUrl);
 
   websocket.on("open", () => {
-    const proAgentPayload = createPayload({
+    const payload = createPayload({
       stream: true,
-      agent: "ProAgent",
+      agent,
       contextDuration: 1,
-      parentId: uuidv4(),
+      parentId: agent === "ProAgent" ? (0).toString() : (0).toString(),
       value: query,
     });
 
-    websocket.send(JSON.stringify(proAgentPayload));
+    console.log(payload, " agent payload");
 
-    // uncomment to try market analyzer
-
-    // const marketAnalyzerPayload = createPayload({
-    //   stream: false,
-    //   agent: "MarketAnalyzerAgent",
-    //   contextDuration: 1,
-    // });
-
-    // websocket.send(JSON.stringify(marketAnalyzerPayload));
+    websocket.send(JSON.stringify(payload));
 
     console.log("Messages sent to WebSocket");
   });
@@ -131,10 +159,12 @@ async function streamChatResponse({
 
 if (require.main === module) {
   const config: ChatConfig = {
-    userId: "YOUR_USER_ID",
+    userId: "YOUR-USER-ID",
     query: "Who are the top KOLs for $CHILLGUY?",
     baseUrl: "api.fereai.xyz",
-    apiKey: "your-api-key",
+    apiKey: "YOUR-API-KEY",
+    // select agent type
+    agent: "ProAgent",
   };
 
   streamChatResponse(config).catch((error) => {

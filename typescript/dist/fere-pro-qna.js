@@ -3,28 +3,46 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getUserTime = void 0;
 const ws_1 = __importDefault(require("ws"));
-const uuid_1 = require("uuid");
+const dayjs_1 = __importDefault(require("dayjs"));
+const utc_1 = __importDefault(require("dayjs/plugin/utc"));
+const timezone_1 = __importDefault(require("dayjs/plugin/timezone"));
+const getUserTime = () => {
+    // Extend dayjs with plugins
+    dayjs_1.default.extend(utc_1.default);
+    dayjs_1.default.extend(timezone_1.default);
+    // Detect user's timezone
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Get current timestamp (in UTC)
+    const currentTimestamp = Date.now();
+    // Parse the timestamp to the detected timezone
+    const userTime = (0, dayjs_1.default)(currentTimestamp).tz(userTimezone);
+    return userTime;
+};
+exports.getUserTime = getUserTime;
 /**
  * Creates a formatted payload for WebSocket communication based on agent type
  */
 const createPayload = (payload) => {
     const basePayload = {
-        stream: payload.stream ?? false,
         agent: payload.agent,
+        stream: payload.stream ?? false,
+        user_time: getUserTime().format(),
         x_hours: payload.contextDuration,
     };
     switch (payload.agent) {
         case "ProAgent": {
             return {
                 ...basePayload,
-                parent: payload.parentId,
+                parent: payload.parentId === "0" ? 0 : payload.parentId,
+                message: payload.value,
             };
         }
         case "MarketAnalyzerAgent": {
             return {
                 ...basePayload,
-                parent: "0",
+                parent: 0,
             };
         }
         default: {
@@ -39,25 +57,29 @@ const createPayload = (payload) => {
  * @param config - Configuration object containing connection details
  * @throws {Error} When WebSocket connection fails
  */
-async function streamChatResponse({ userId, query, baseUrl, apiKey, }) {
-    const wsUrl = `wss://${baseUrl}/chat/v2/ws/${userId}?X-FRIDAY-KEY=${apiKey}`;
+async function streamChatResponse({ userId, query, baseUrl, apiKey, agent, }) {
+    const wsUrl = (() => {
+        switch (agent) {
+            case "ProAgent":
+                return `wss://${baseUrl}/chat/v2/ws/${userId}?X-FRIDAY-KEY=${apiKey}`;
+            case "MarketAnalyzerAgent":
+                return `wss://${baseUrl}/ws/generate_summary/${userId}?X-FRIDAY-KEY=${apiKey}`;
+            default:
+                throw new Error(`Unsupported agent: ${agent}`);
+        }
+    })();
+    console.log(`socket url: ${wsUrl}`);
     const websocket = new ws_1.default(wsUrl);
     websocket.on("open", () => {
-        const proAgentPayload = createPayload({
+        const payload = createPayload({
             stream: true,
-            agent: "ProAgent",
+            agent,
             contextDuration: 1,
-            parentId: (0, uuid_1.v4)(),
+            parentId: agent === "ProAgent" ? (0).toString() : (0).toString(),
             value: query,
         });
-        websocket.send(JSON.stringify(proAgentPayload));
-        // uncomment to try market analyzer
-        // const marketAnalyzerPayload = createPayload({
-        //   stream: false,
-        //   agent: "MarketAnalyzerAgent",
-        //   contextDuration: 1,
-        // });
-        // websocket.send(JSON.stringify(marketAnalyzerPayload));
+        console.log(payload, " agent payload");
+        websocket.send(JSON.stringify(payload));
         console.log("Messages sent to WebSocket");
     });
     websocket.on("message", (data) => {
@@ -75,19 +97,15 @@ async function streamChatResponse({ userId, query, baseUrl, apiKey, }) {
     websocket.on("close", (code, reason) => {
         console.log(`WebSocket connection closed - Code: ${code}, Reason: ${reason.toString()}`);
     });
-    // Cleanup connection after 5 minutes
-    setTimeout(() => {
-        if (websocket.readyState === ws_1.default.OPEN) {
-            websocket.close();
-        }
-    }, 5 * 60 * 1000);
 }
 if (require.main === module) {
     const config = {
-        userId: "YOUR_USER_ID",
+        userId: "2609ed40-39b5-430a-b343-b377052b9781",
         query: "Who are the top KOLs for $CHILLGUY?",
         baseUrl: "api.fereai.xyz",
-        apiKey: "your-api-key",
+        apiKey: "98aD7ZQMzcCABC",
+        // select agent type
+        agent: "ProAgent",
     };
     streamChatResponse(config).catch((error) => {
         console.error("Failed to stream chat response:", error);
