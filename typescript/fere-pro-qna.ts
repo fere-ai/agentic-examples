@@ -1,56 +1,144 @@
-import WebSocket from 'ws'; // Use 'ws' library for WebSocket in Node.js
-import { v4 as uuidv4 } from 'uuid'; // Use 'uuid' library for UUID
+import WebSocket from "ws";
+import { v4 as uuidv4 } from "uuid";
 
-async function streamChatResponse(userId: string, query: string, baseUrl: string, apiKey: string): Promise<void> {
-  /**
-   * Opens a WebSocket connection to send a chat query and stream the response.
-   *
-   * Args:
-   *    userId (string): The user ID for the chat session (UUID string).
-   *    query (string): The query string to send.
-   *    baseUrl (string): The base URL for the WebSocket endpoint.
-   *    apiKey (string): The API key for authentication.
-   */
+/**
+ * Available AI agent endpoints that can be queried
+ */
+type Endpoint = "ProAgent" | "MarketAnalyzerAgent";
 
-  // Construct the WebSocket URL
+/**
+ * Base interface for all agent payloads
+ */
+interface BaseAgentPayload {
+  readonly stream?: boolean;
+  readonly agent: Endpoint;
+  readonly contextDuration: number;
+}
+
+/**
+ * ProAgent specific payload interface
+ */
+interface ProAgentPayload extends BaseAgentPayload {
+  readonly agent: "ProAgent";
+  readonly value: string;
+  readonly parentId: string;
+}
+
+/**
+ * MarketAnalyzer specific payload interface
+ */
+interface MarketAnalyzerPayload extends BaseAgentPayload {
+  readonly agent: "MarketAnalyzerAgent";
+}
+
+type Payload = ProAgentPayload | MarketAnalyzerPayload;
+
+/**
+ * Creates a formatted payload for WebSocket communication based on agent type
+ */
+const createPayload = (payload: Payload): Record<string, unknown> => {
+  const basePayload = {
+    stream: payload.stream ?? false,
+    agent: payload.agent,
+    x_hours: payload.contextDuration,
+  };
+
+  switch (payload.agent) {
+    case "ProAgent": {
+      return {
+        ...basePayload,
+        parent: payload.parentId,
+      };
+    }
+    case "MarketAnalyzerAgent": {
+      return {
+        ...basePayload,
+        parent: "0",
+      };
+    }
+    default: {
+      const _exhaustiveCheck: never = payload;
+      return {};
+    }
+  }
+};
+
+interface ChatConfig {
+  readonly userId: string;
+  readonly query: string;
+  readonly baseUrl: string;
+  readonly apiKey: string;
+}
+
+/**
+ * Establishes a WebSocket connection and streams chat responses from AI agents
+ *
+ * @param config - Configuration object containing connection details
+ * @throws {Error} When WebSocket connection fails
+ */
+async function streamChatResponse({
+  userId,
+  query,
+  baseUrl,
+  apiKey,
+}: ChatConfig): Promise<void> {
   const wsUrl = `wss://${baseUrl}/chat/v2/ws/${userId}?X-FRIDAY-KEY=${apiKey}`;
-
-  // Create a new WebSocket instance
   const websocket = new WebSocket(wsUrl);
 
-  websocket.on('open', () => {
-    // Prepare the message payload
-    const message = {
-      message: query,
+  websocket.on("open", () => {
+    const proAgentPayload = createPayload({
       stream: true,
-      agent: "ProAgent"
-    };
+      agent: "ProAgent",
+      contextDuration: 1,
+      parentId: uuidv4(),
+      value: query,
+    });
 
-    // Send the message to the WebSocket
-    websocket.send(JSON.stringify(message));
-    console.log("Message sent to WebSocket.");
+    websocket.send(JSON.stringify(proAgentPayload));
+
+    // uncomment to try market analyzer
+
+    // const marketAnalyzerPayload = createPayload({
+    //   stream: false,
+    //   agent: "MarketAnalyzerAgent",
+    //   contextDuration: 1,
+    // });
+
+    // websocket.send(JSON.stringify(marketAnalyzerPayload));
+
+    console.log("Messages sent to WebSocket");
   });
 
-  websocket.on('message', (data: WebSocket.Data) => {
-    // Log each message received
-    console.log(`Streaming response: ${data.toString()}`);
+  websocket.on("message", (data: WebSocket.Data) => {
+    try {
+      const response = JSON.parse(data.toString());
+      console.log("Received response:", response);
+    } catch (error) {
+      console.error("Failed to parse WebSocket message:", error);
+    }
   });
 
-  websocket.on('error', (error: Error) => {
-    console.error(`An error occurred: ${error.message}`);
+  websocket.on("error", (error: Error) => {
+    console.error("WebSocket error:", error.message);
   });
 
-  websocket.on('close', (code: number, reason: Buffer) => {
-    console.log(`WebSocket connection closed with code: ${code}, reason: ${reason.toString()}`);
+  websocket.on("close", (code: number, reason: Buffer) => {
+    console.log(
+      `WebSocket connection closed - Code: ${code}, Reason: ${reason.toString()}`
+    );
   });
 }
 
-// Example usage
-(async () => {
-  const userId = "YOUR_USER_ID"; // Replace with actual user ID
-  const query = "Who are the top KOLs for $CHILLGUY?";
-  const baseUrl = "api.fereai.xyz"; // Replace with actual base URL
-  const apiKey = "your-api-key"; // Replace with actual API key
+if (require.main === module) {
+  const config: ChatConfig = {
+    userId: "YOUR_USER_ID",
+    query: "Who are the top KOLs for $CHILLGUY?",
+    baseUrl: "api.fereai.xyz",
+    apiKey: "your-api-key",
+  };
 
-  await streamChatResponse(userId, query, baseUrl, apiKey);
-})();
+  streamChatResponse(config).catch((error) => {
+    console.error("Failed to stream chat response:", error);
+    process.exit(1);
+  });
+}
