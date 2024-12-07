@@ -5,14 +5,15 @@
   "main": "dist/fere-pro-qna.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/fere-pro-qna.js",
-    "dev": "tsc && node dist/fere-pro-qna.js",
+    "start": "node dist/trading-agent.js",
+    "dev": "tsc && node dist/trading-agent.js",
     "start:dev": "npm run build && npm run start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.7.9",
     "dayjs": "^1.11.13",
     "uuid": "^9.0.1",
     "ws": "^8.14.2"
