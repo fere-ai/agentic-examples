@@ -1,0 +1,25 @@
+{
+  "name": "typescript-websocket-example",
+  "version": "1.0.0",
+  "description": "TypeScript WebSocket client example",
+  "main": "dist/fere-pro-qna.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/fere-pro-qna.js",
+    "dev": "tsc && node dist/fere-pro-qna.js",
+    "start:dev": "npm run build && npm run start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.3"
+  }
+}
