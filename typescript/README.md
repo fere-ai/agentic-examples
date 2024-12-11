@@ -103,10 +103,10 @@ yarn dev:trading-agent
 
 Copy the `trading-agent.ts` file to your codebase, add the necessary dependencies, and import `Agent` (the default export) to start using it. Alternatively, if you're using this repository, simply import `Agent` and get started with the following quick-start examples.
 
-### Create a Disciple Instance
+### Create FereAgent Instance
 
 ```typescript
-import { Agent } from "trading-agent-sdk";
+import FereAgent from "trading-agent-sdk";
 import fs from "fs";
 import path from "path";
 
