@@ -1,5 +1,4 @@
 import WebSocket from "ws";
-import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -89,7 +88,7 @@ const createPayload = (payload: Payload): Record<string, unknown> => {
 
 interface ChatConfig {
   readonly userId: string;
-  readonly query: string;
+  readonly query?: string;
   readonly baseUrl: string;
   readonly apiKey: string;
   readonly agent: Endpoint;
@@ -127,7 +126,7 @@ async function streamChatResponse({
       agent,
       contextDuration: 1,
       parentId: agent === "ProAgent" ? (0).toString() : (0).toString(),
-      value: query,
+      value: agent === "ProAgent" && query ? query : "",
     });
 
     console.log(payload, " agent payload");
@@ -160,10 +159,11 @@ async function streamChatResponse({
 if (require.main === module) {
   const config: ChatConfig = {
     userId: "YOUR-USER-ID",
+    // query is only needed for ProAgent
     query: "Who are the top KOLs for $CHILLGUY?",
     baseUrl: "api.fereai.xyz",
     apiKey: "YOUR-API-KEY",
-    // select agent type
+    // select agent type, can be ProAgent or MarketAnalyzerAgent
     agent: "ProAgent",
   };
 
