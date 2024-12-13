@@ -205,6 +205,7 @@ console.log(await agent.getTrades("YOUR-DISCIPLE-ID"));
 ```
 
 ### Create Trade (Sell a Holding Manually)
+When you submit a trade to sell a holding, you will receive a task ID in the response. You can use this task ID to check the status of the trade using the task status endpoint.
 
 ```typescript
 console.log(await agent.sellHolding("YOUR-DISCIPLE-ID", "HOLDING-ID", 10));
