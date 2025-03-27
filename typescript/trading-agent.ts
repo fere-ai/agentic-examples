@@ -1,367 +1,474 @@
 import axios, { AxiosResponse } from "axios";
-import * as fs from "fs";
-import * as path from "path";
 
 interface CreateAgentParams {
-  name: string;
-  description: string;
-  persona: string;
-  dataSource: "latest" | "trending";
-  decisionPromptPool: string;
-  decisionPromptPortfolio: string;
-  twitterUsername?: string;
-  fcUsername?: string;
+  fere_user_id: string;
+  name?: string;
+  description?: string;
+  persona?: string;
+  data_source?: string;
+  decision_prompt_pool?: string;
+  decision_prompt_portfolio?: string;
+  twitter_username?: string;
+  fc_username?: string;
   simulation?: boolean;
-  simulationInitialUsd?: number;
-  maxInvestmentPerSession?: number;
-  stopLoss?: number;
-  trailingStopLoss?: number;
-  takeProfit?: number;
+  simulation_initial_usd?: number;
+  simulation_initial_native?: number;
+  max_investment_per_session?: number;
+  stop_loss?: number;
+  trailing_stop_loss?: number;
+  take_profit?: number;
+  chain?: string;
+  mode?: string;
+  parent_ids?: string[];
+  investment_for_buy?: number;
+  investment_for_buy_usd?: number;
 }
 
-interface CreateAgentResponse extends CreateAgentParams {
-  mnemonic: string;
-  sol_address: string;
-  evm_address: string;
-  sol_pvt_key: string;
-  evm_pvt_key: string;
+interface UpdateAgentParams {
+  [key: string]: any;
 }
 
-interface UpdateAgentPayload {
-  name: string;
-  description: string;
-  persona: string;
-  dataSource: string;
-  decisionPromptPool: string;
-  decisionPromptPortfolio: string;
-  twitterUsername?: string;
-  fcUsername?: string;
-  dryRun?: boolean;
-  dryRunInitialUsd?: number;
-  maxInvestmentPerSession?: number;
-  stopLoss?: number;
-  trailingStopLoss?: number;
-  takeProfit?: number;
-}
-
-interface Disciple extends CreateAgentParams {
-  is_active: boolean;
-}
-
-interface AgentPortfolio {
-  id: string; // UUID
-  agent_id: string; // UUID
-  start_time: string; // ISO 8601 date-time string
-  start_usd: number; // Start USD
-  start_native: number; // Start Native
-  curr_realised_usd: number; // Current Realised USD
-  curr_realised_native: number; // Current Realised Native
-  curr_unrealised_usd: number; // Current Unrealised USD
-  curr_unrealised_native: number; // Current Unrealised Native
-  dry_run: boolean; // Dry Run
-}
-
-interface AgentHolding {
-  id: string; // UUID
-  bought_at: string; // ISO 8601 date-time string
-  agent_id: string; // UUID
-  base_address: string; // Base Address
-  pool_address: string; // Pool Address
-  pool_name: string; // Pool Name
-  token_name: string; // Token Name
-  decimals: number; // Decimals (integer)
-  tokens_bought: number; // Tokens Bought
-  buying_price_usd: number; // Buying Price in USD
-  buying_price_native: number; // Buying Price in Native
-  curr_price_usd: number; // Current Price in USD
-  curr_price_native: number; // Current Price in Native
-  profit_abs_usd: number; // Profit Absolute in USD (could specify structure if known)
-  profit_abs_native: number; // Profit Absolute in Native (could specify structure if known)
-  profit_per_usd: number; // Profit Percentage in USD (could specify structure if known)
-  profit_per_native: number; // Profit Percentage in Native (could specify structure if known)
-  is_active: boolean; // Is Active
-  dry_run: boolean; // Dry Run
-}
-
-interface AgentDecisions {
-  id: string; // UUID
-  agent_id: string; // UUID
-  created_at: string; // ISO 8601 date-time string
-  pool_address: string; // Pool Address
-  decision: number; // Decision (integer)
-  price_usd: number; // Price in USD
-  price_native: number; // Price in Native
-  reason: string; // Reason (could specify structure if known)
-  future_action: string; // Future Action (could specify structure if known)
-  dry_run: boolean; // Dry Run
-}
-
-interface AgentTrades {
-  created_at: string; // date-time
-  agent_id: string; // uuid
-  base_address: string; // Base Address (string)
-  pool_name: string; // Pool Name (string)
-  decision: number; // Decision (integer)
-  price_usd: number; // Price Usd (number)
-  price_sol: number; // Price Sol (number)
-  in_amount: number; // In Amount (number)
-  out_amount: number; // Out Amount (number)
-  gas_fee: number; // Gas Fee (number)
-  jito_fee: number; // Jito Fee (number)
-  other_amount_threshold: number; // Other Amount Threshold (number)
-  reason: string;
-  future_action: string;
-  profit_sol: number;
-  profit_usd: number;
-  profit_percentage: object;
-  txn: string;
-  dry_run: boolean; // Dry Run (boolean)
-}
-
-class FereAgent {
-  private fereApiKey: string;
-  private fereUserId: string;
-  private baseUrl: string = "https://api.fereai.xyz/ta";
-
-  constructor(fereApiKey: string, fereUserId: string) {
-    this.fereApiKey = fereApiKey;
-    this.fereUserId = fereUserId;
+class DiscipleClient {
+  private api_key: string;
+  private user_id: string;
+  private base_url: string = "http://localhost:8001/";
+  
+  constructor(api_key: string, user_id: string) {
+    this.api_key = api_key;
+    this.user_id = user_id;
   }
 
-  private getApiHeaders(): Record<string, string> {
+  get api_headers(): Record<string, string> {
     return {
+      "X-FRIDAY-KEY": this.api_key,
       "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-FRIDAY-KEY": this.fereApiKey,
-      "X-FERE-USERID": this.fereUserId,
+      "X-FERE-USERID": this.user_id,
     };
   }
 
-  async createAgent(
-    params: CreateAgentParams
-  ): Promise<CreateAgentResponse | null> {
-    const url = `${this.baseUrl}/agent/`;
+  async create_agent(params: CreateAgentParams): Promise<any> {
+    const url = `${this.base_url}agent/`;
+    
     const payload = {
-      user_id: this.fereUserId,
+      user_id: params.fere_user_id,
       name: params.name,
       description: params.description,
       persona: params.persona,
-      data_source: params.dataSource,
-      decision_prompt_pool: params.decisionPromptPool,
-      decision_prompt_portfolio: params.decisionPromptPortfolio,
-      twitter_username: params.twitterUsername,
-      fc_username: params.fcUsername,
+      chain: params.chain || 'base',
+      data_source: params.data_source,
+      decision_prompt_pool: params.decision_prompt_pool,
+      decision_prompt_portfolio: params.decision_prompt_portfolio,
+      twitter_username: params.twitter_username,
+      fc_username: params.fc_username,
       dry_run: params.simulation || false,
-      dry_run_initial_usd: params.simulationInitialUsd || 0,
-      max_investment_per_session: params.maxInvestmentPerSession || 0,
-      stop_loss: params.stopLoss || 0.1,
-      trailing_stop_loss: params.trailingStopLoss || 0.1,
-      take_profit: params.takeProfit || 0.1,
+      dry_run_initial_usd: params.simulation_initial_usd,
+      dry_run_initial_native: params.simulation_initial_native || 1.0,
+      max_investment_per_session: params.max_investment_per_session,
+      stop_loss: params.stop_loss || 0.6,
+      trailing_stop_loss: params.trailing_stop_loss,
+      take_profit: params.take_profit || 0.5,
+      mode: params.mode || 'MANUAL',
+      parent_ids: params.parent_ids,
+      investment_for_buy: params.investment_for_buy,
+      investment_for_buy_usd: params.investment_for_buy_usd || 10.0,
     };
 
     try {
-      const response = await axios.put<CreateAgentResponse>(url, payload, {
-        headers: this.getApiHeaders(),
+      const response = await axios.put(url, payload, {
+        headers: this.api_headers,
+        timeout: 10000
       });
 
-      return response.status === 200 ? response.data : null;
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error("Request failed:", error);
+      console.error('Error creating agent:', error);
       return null;
     }
   }
 
-  async fetchDisciples(): Promise<Disciple[]> {
-    const url = `${this.baseUrl}/ta/agent/${this.fereUserId}/`;
-
+  async get_agent(agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${agent_id}`;
+    
     try {
-      const response: AxiosResponse<Array<Disciple>> = await axios.get(url, {
-        headers: this.getApiHeaders(),
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
       });
 
-      return response.status === 200 ? response.data : [];
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error(`Request failed: ${error}`);
+      console.error('Error getting agent:', error);
+      return null;
+    }
+  }
+
+  async fetch_disciples(fere_user_id: string): Promise<any[]> {
+    const url = `${this.base_url}agent/user/${fere_user_id}/`;
+    
+    try {
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        const data = response.data;
+        console.log(`Disciples Created: ${data.length}\n`);
+        
+        for (const disciple of data) {
+          console.log(`Name: ${disciple.name}`);
+          console.log(`ID: ${disciple.id}\n`);
+        }
+        
+        return data;
+      } else {
+        console.error(`Failed to fetch disciples: ${response.statusText}`);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching disciples:', error);
       return [];
     }
   }
 
-  async getAgentDetails(discipleAgentId: string): Promise<Disciple | null> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}`;
+  async get_portfolio(disciple_agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/portfolio/`;
+    
     try {
-      const response: AxiosResponse<Disciple> = await axios.get(url, {
-        headers: this.getApiHeaders(),
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 60000
       });
 
-      return response.status === 200 ? response.data : null;
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error(`Request failed: ${error}`);
-
+      console.error('Error getting portfolio:', error);
       return null;
     }
   }
 
-  async getPortfolio(discipleAgentId: string): Promise<AgentPortfolio | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/portfolio/`;
-
+  async get_holdings(disciple_agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/holdings/`;
+    
     try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
       });
 
-      return response.status === 200 ? response.data : undefined;
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getHoldings(discipleAgentId: string): Promise<AgentHolding[] | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/holdings/`;
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getTrades(discipleAgentId: string): Promise<AgentTrades[] | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/trades/`;
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getTradeRecommendations(
-    discipleAgentId: string
-  ): Promise<any[] | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/decisions/`;
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getOptimalGains(discipleAgentId: string): Promise<any | void> {
-    const url = `${this.baseUrl}/ta/agent/${discipleAgentId}/buy/`;
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async sellHolding(
-    discipleAgentId: string,
-    holdingId: string,
-    quantity: number
-  ): Promise<any | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/sell/f${holdingId}/f${quantity}/`;
-    const payload = {};
-
-    try {
-      const response: AxiosResponse = await axios.post(url, payload, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getTaskStatus(taskId: string): Promise<any | void> {
-    const url = `${this.baseUrl}/task/status/${taskId}/`;
-    const payload = {};
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : undefined;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-    }
-  }
-
-  async getDecisions(discipleAgentId: string): Promise<AgentDecisions | null> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/decisions/`;
-
-    try {
-      const response: AxiosResponse = await axios.get(url, {
-        headers: this.getApiHeaders(),
-      });
-
-      return response.status === 200 ? response.data : null;
-    } catch (error) {
-      console.error(`Request failed: ${error}`);
-
+      console.error('Error getting holdings:', error);
       return null;
     }
   }
 
-  async updateAgent(
-    discipleId: string,
-    payload: UpdateAgentPayload
-  ): Promise<any | void> {
-    const url = `${this.baseUrl}/agent/${discipleId}/`;
-
+  async get_trades(disciple_agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/trades/`;
+    
     try {
-      const response: AxiosResponse = await axios.patch(
-        url,
-        {
-          ...payload,
-          user_id: this.fereUserId,
-        },
-        {
-          headers: this.getApiHeaders(),
-        }
-      );
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
 
-      return response.status === 200 ? response.data : undefined;
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error(`Request failed: ${error}`);
+      console.error('Error getting trades:', error);
+      return null;
     }
   }
 
-  async deleteDisciple(discipleAgentId: string): Promise<any | void> {
-    const url = `${this.baseUrl}/agent/${discipleAgentId}/`;
-    const payload = {};
-
+  async get_trade_recommendations(disciple_agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/decisions/`;
+    
     try {
-      const response: AxiosResponse = await axios.delete(url, {
-        headers: this.getApiHeaders(),
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting trade recommendations:', error);
+      return null;
+    }
+  }
+
+  async get_optimal_gains(
+    disciple_agent_id: string, 
+    page: number = 1, 
+    page_size: number = 10, 
+    sort_by_latest_signal: boolean = true, 
+    sort_column: string = 'noticed_at', 
+    sort_order: string = 'desc'
+  ): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/calls/`;
+    
+    const params = {
+      page,
+      page_size,
+      sort_by_latest_signal,
+      sort_column,
+      sort_order
+    };
+    
+    try {
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        params,
+        timeout: 20000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting optimal gains:', error);
+      return null;
+    }
+  }
+
+  async get_decisions(disciple_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_id}/decisions/`;
+    
+    try {
+      const response = await axios.get(url, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting decisions:', error);
+      return null;
+    }
+  }
+
+  async update_agent(disciple_id: string, params: UpdateAgentParams): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_id}/`;
+    
+    try {
+      const response = await axios.patch(url, params, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error updating agent:', error);
+      return null;
+    }
+  }
+
+  async schedule_sell(disciple_id: string, ca: string, quantity: string | number = "all"): Promise<any> {
+    const url = `${this.base_url}/agent/${disciple_id}/sell/${ca}/${quantity}/`;
+    const payload = {};
+    
+    try {
+      const response = await axios.post(url, payload, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.log(`Got response code ${response.status} with message ${response.statusText}`);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error scheduling sell:', error);
+      return null;
+    }
+  }
+
+  async schedule_buy(
+    disciple_id: string, 
+    ca: string, 
+    quantity: number | null, 
+    value_usd: number | null, 
+    slippage: number = 1.0
+  ): Promise<any> {
+    const url = `${this.base_url}/agent/${disciple_id}/buy/`;
+    
+    const payload = {
+      ca,
+      quantity,
+      value_usd,
+      slippage
+    };
+    
+    try {
+      const response = await axios.post(url, payload, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error scheduling buy:', error);
+      return null;
+    }
+  }
+
+  async check_task_status(task_id: string): Promise<any> {
+    const url = `${this.base_url}/task/status/${task_id}/`;
+    const payload = {};
+    
+    try {
+      const response = await axios.get(url, {
+        headers: this.api_headers,
         data: payload,
+        timeout: 10000
       });
 
-      return response.status === 200 ? response.data : undefined;
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
     } catch (error) {
-      console.error(`Request failed: ${error}`);
+      console.error('Error checking task status:', error);
+      return null;
+    }
+  }
+
+  async delete_disciple(disciple_agent_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_agent_id}/`;
+    
+    try {
+      const response = await axios.delete(url, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error deleting disciple:', error);
+      return null;
+    }
+  }
+
+  async add_parents(disciple_id: string, parents: string[]): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_id}/parents/`;
+    const payload = { parent_ids: parents };
+    
+    try {
+      const response = await axios.patch(url, payload, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error adding parents:', error);
+      return null;
+    }
+  }
+
+  async delete_parents(disciple_id: string, parent_ids: string[]): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_id}/parents/`;
+    const payload = { parent_ids };
+    
+    try {
+      const response = await axios.delete(url, {
+        headers: this.api_headers,
+        data: payload,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error deleting parents:', error);
+      return null;
+    }
+  }
+
+  async schedule_sync(disciple_id: string): Promise<any> {
+    const url = `${this.base_url}agent/${disciple_id}/sync/`;
+    
+    try {
+      const response = await axios.patch(url, {}, {
+        headers: this.api_headers,
+        timeout: 10000
+      });
+
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        console.error(response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error scheduling sync:', error);
+      return null;
     }
   }
 }
 
-export default FereAgent;
+export default DiscipleClient;
